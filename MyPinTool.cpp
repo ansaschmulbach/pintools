@@ -26,9 +26,12 @@ using std::set;
 /* ================================================================== */
 
 std::ostream* out = &cerr;
-UINT64 timestamp = 0;
-unordered_map<ADDRINT, UINT64> addrTimestampMap;
-map<UINT64, UINT64> reuseDistances;
+UINT64 dTimestamp = 0;
+unordered_map<ADDRINT, UINT64> dAddrTimestampMap;
+map<UINT64, UINT64> dReuseDistances;
+UINT64 iTimestamp = 0;
+unordered_map<ADDRINT, UINT64> iAddrTimestampMap;
+map<UINT64, UINT64> iReuseDistances;
 
 
 /* ===================================================================== */
@@ -57,19 +60,31 @@ INT32 Usage()
     return -1;
 }
 
-void memAccess(ADDRINT virtualAddr) {
-	if (addrTimestampMap.find(virtualAddr) != addrTimestampMap.end()) {
-		UINT64 reuseDistance = timestamp - addrTimestampMap[virtualAddr];
-		if (reuseDistances.find(reuseDistance) != reuseDistances.end()) {
-			reuseDistances[reuseDistance] += 1;
+void dmemAccess(ADDRINT virtualAddr) {
+	if (dAddrTimestampMap.find(virtualAddr) != dAddrTimestampMap.end()) {
+		UINT64 reuseDistance = dTimestamp - dAddrTimestampMap[virtualAddr];
+		if (dReuseDistances.find(reuseDistance) != dReuseDistances.end()) {
+			dReuseDistances[reuseDistance] += 1;
 		} else {
-			reuseDistances[reuseDistance] = 1;
+			dReuseDistances[reuseDistance] = 1;
 		}
 	}
-	addrTimestampMap[virtualAddr] = timestamp;
-	timestamp++;
+	dAddrTimestampMap[virtualAddr] = dTimestamp;
+	dTimestamp++;
 }
 
+void imemAccess(ADDRINT virtualAddr) {
+	if (iAddrTimestampMap.find(virtualAddr) != iAddrTimestampMap.end()) {
+		UINT64 reuseDistance = iTimestamp - iAddrTimestampMap[virtualAddr];
+		if (iReuseDistances.find(reuseDistance) != iReuseDistances.end()) {
+			iReuseDistances[reuseDistance] += 1;
+		} else {
+			iReuseDistances[reuseDistance] = 1;
+		}
+	}
+	iAddrTimestampMap[virtualAddr] = iTimestamp;
+	iTimestamp++;
+}
 /* ===================================================================== */
 // Instrumentation callbacks
 /* ===================================================================== */
@@ -78,9 +93,10 @@ void memAccess(ADDRINT virtualAddr) {
 VOID Instruction(INS ins, VOID *v)
 {
     if(INS_IsMemoryRead(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)memAccess, IARG_MEMORYREAD_EA, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)dmemAccess, IARG_MEMORYREAD_EA, IARG_END);
     if(INS_IsMemoryWrite(ins))
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)memAccess, IARG_MEMORYWRITE_EA, IARG_END);
+        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)dmemAccess, IARG_MEMORYWRITE_EA, IARG_END);
+    INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)imemAccess, IARG_INST_PTR, IARG_END);
 }
 
 /*!
@@ -94,7 +110,12 @@ VOID Fini(INT32 code, VOID* v)
 {
     *out << "===============================================" << endl;
     *out << "MyPinTool analysis results: " << endl;
-    for (const auto& pair : reuseDistances) {
+    *out << "DMem Reuse Distances: " << endl;
+    for (const auto& pair : dReuseDistances) {
+        *out << pair.first << ": " << pair.second << std::endl;
+    }
+    *out << "IMem Reuse Distances: " << endl;
+    for (const auto& pair : iReuseDistances) {
         *out << pair.first << ": " << pair.second << std::endl;
     }
     *out << "===============================================" << endl;
