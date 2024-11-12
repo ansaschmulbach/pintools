@@ -25,7 +25,8 @@ using std::set;
 // Global variables
 /* ================================================================== */
 
-std::ostream* out = &cerr;
+std::ostream* outImem = &cerr;
+std::ostream* outDmem = &cerr;
 UINT64 dTimestamp = 0;
 unordered_map<ADDRINT, UINT64> dAddrTimestampMap;
 map<UINT64, UINT64> dReuseDistances;
@@ -108,17 +109,12 @@ VOID Instruction(INS ins, VOID *v)
  */
 VOID Fini(INT32 code, VOID* v)
 {
-    *out << "===============================================" << endl;
-    *out << "MyPinTool analysis results: " << endl;
-    *out << "DMem Reuse Distances: " << endl;
     for (const auto& pair : dReuseDistances) {
-        *out << pair.first << ": " << pair.second << std::endl;
+        *outDmem << pair.first << ": " << pair.second << std::endl;
     }
-    *out << "IMem Reuse Distances: " << endl;
     for (const auto& pair : iReuseDistances) {
-        *out << pair.first << ": " << pair.second << std::endl;
+        *outImem << pair.first << ": " << pair.second << std::endl;
     }
-    *out << "===============================================" << endl;
 }
 
 /*!
@@ -141,7 +137,8 @@ int main(int argc, char* argv[])
 
     if (!fileName.empty())
     {
-        out = new std::ofstream(fileName.c_str());
+        outDmem = new std::ofstream(("dmem_" + fileName).c_str());
+        outImem = new std::ofstream(("imem_" + fileName).c_str());
     }
 
     if (KnobCount)
